@@ -5,11 +5,9 @@
 ## Usage
 
 ```ts
-import { createAssertSnaphost } from "https://denopkg.com/LosMaquios/snapting/mod.ts";
+import { createS, assertSnapshot } from "https://denopkg.com/LosMaquios/snapting/mod.ts";
 
-const assertSnapshot = createAssertSnaphost(import.meta.url);
-
-Deno.test('should work', () => {
-  assertSnapshot('testing snapshot');
+Deno.test('should work', async () => {
+  await assertSnapshot('testing snapshot');
 })
 ```

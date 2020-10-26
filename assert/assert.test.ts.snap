@@ -1,0 +1,7 @@
+export const assertions = {};
+
+assertions["should work 0"] = "Testing snapshots";
+
+assertions["this should be working now 0"] = "C'mon";
+
+assertions["this should be working now 1"] = "What?";
