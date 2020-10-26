@@ -1,13 +1,15 @@
-# Snapting
+# Snapting (WIP)
 
   Very simple snapshot testing for Deno
 
 ## Usage
 
 ```ts
-import { createS, assertSnapshot } from "https://denopkg.com/LosMaquios/snapting/mod.ts";
+import { createSnapshotRunner, assertSnapshot } from "https://denopkg.com/LosMaquios/snapting/mod.ts";
 
-Deno.test('should work', async () => {
-  await assertSnapshot('testing snapshot');
+const test = createSnapshotRunner(import.meta.url);
+
+test('should work', () => {
+  assertSnapshot('testing snapshot');
 })
 ```
