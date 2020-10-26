@@ -33,10 +33,10 @@ export class SnapshotWriter {
    *
    */
   write() {
-    console.log('Writing to:', this._snapshotFilename.replace('file://', ''));
+    console.log("Writing to:", this._snapshotFilename.replace("file://", ""));
 
     return Deno.writeTextFile(
-      this._snapshotFilename.replace('file://', ''),
+      this._snapshotFilename.replace("file://", ""),
       this._genSnapshotCode(),
       {
         mode: 0o777,

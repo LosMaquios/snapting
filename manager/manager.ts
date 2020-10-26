@@ -120,8 +120,6 @@ export class SnapshotManager {
       });
     }
 
-    return needRewrite
-      ? this._snapshotWriter.write()
-      : Promise.resolve();
+    return needRewrite ? this._snapshotWriter.write() : Promise.resolve();
   };
 }
