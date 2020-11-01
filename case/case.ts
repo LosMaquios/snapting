@@ -1,5 +1,4 @@
 import type { SnapshotManager } from "../manager/manager.ts";
-import { iterateMap, IteratorFn } from "../utils.ts";
 import { asserts } from "../deps.ts";
 
 export type SnapshotAssertionId = number;
@@ -28,7 +27,9 @@ export class SnapshotCase {
 
   /**
    * 
-   * @param assertion
+   * @param assertionId - the assertion id
+   * @param assertion - the assertion value
+   * @param pending
    */
   addAssertion(
     assertionId: SnapshotAssertionId,
@@ -39,6 +40,13 @@ export class SnapshotCase {
 
     if (pending) {
       this._pendingSnapshotAssertions.set(assertionId, assertion);
+    } else {
+      // Append unknown assertion to writer buffer
+      this._snapshotManager.appendAssertion(
+        this.caseId,
+        assertionId,
+        assertion,
+      );
     }
   }
 
@@ -67,16 +75,6 @@ export class SnapshotCase {
     if (hasValidSnapshotFile) {
       this._pendingSnapshotAssertions.delete(assertionId);
     }
-  }
-
-  /**
-   * 
-   * @param iterator 
-   */
-  eachAssertion(
-    iterator: IteratorFn<SnapshotAssertionId, any>,
-  ) {
-    iterateMap(this._snapshotAssertions, iterator);
   }
 
   /**

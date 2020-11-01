@@ -1,8 +1,13 @@
-import type { SnapshotManager } from "../manager/manager.ts";
+import { path } from "../deps.ts";
+import type { SnapshotAssertionId } from "../case/case.ts";
+import type { SnapshotCaseId } from "../manager/manager.ts";
 import { snapshotBatchInstance } from "./batch.ts";
 
 export type SnapshotFileAssertions = { assertions: Record<string, any> };
 export type SnapshotFileBuffer = string[];
+
+export const SNAPSHOT_FILE_ASSERTION_ID_REGEX =
+  /^(?<caseId>[\s\S]+) (?<assertionId>\d+)$/;
 
 export class SnapshotWriter {
   /**
@@ -15,63 +20,71 @@ export class SnapshotWriter {
    */
   private _snapshotBuffer: SnapshotFileBuffer = [];
 
+  /**
+   * 
+   */
+  get pendingWrite() {
+    return !!this._snapshotBuffer.length;
+  }
+
+  /**
+   * 
+   */
+  get snapshotFilename() {
+    const snapshotFileURL = new URL(
+      `./${path.basename(this._parentURL)}.snap`,
+      this._parentURL,
+    );
+
+    const fixPath = String(snapshotFileURL).replace(
+      /^file:\/\//,
+      "",
+    );
+
+    return fixPath;
+  }
+
   constructor(
-    private _snapshotManager: SnapshotManager,
+    private _parentURL: string,
   ) {
     // Auto-batching
     snapshotBatchInstance.add(this);
+  }
 
-    this._appendHeader();
+  appendAssertion(
+    caseId: SnapshotCaseId,
+    assertionId: SnapshotAssertionId,
+    assertion: any,
+  ) {
+    const serializedId = `${caseId} ${assertionId}`;
+    const stringifiedAssertion = JSON.stringify(assertion, null, 2);
+
+    this._snapshotBuffer.push(
+      `${SnapshotWriter.ASSERTIONS_CONST_NAME}["${serializedId}"] = ${stringifiedAssertion};`,
+    );
   }
 
   /**
    *
    */
   write() {
-    const fixPath = this._snapshotManager.snapshotFilename.replace(
-      "file://",
-      "",
-    );
+    const generatedCode = this._generateSnapshotCode();
+    const writeOptions: Deno.WriteFileOptions = {
+      mode: 0o777,
+    };
 
     return Deno.writeTextFileSync(
-      fixPath,
-      this._genSnapshotCode(),
-      {
-        mode: 0o777,
-      },
-    );
-  }
-
-  /**
-   *
-   */
-  private _appendCases() {
-    this._snapshotManager.eachCase((caseId, kase) => {
-      kase.eachAssertion((assertionId, assertion) => {
-        this._appendAssertion(
-          `${caseId} ${assertionId}`,
-          JSON.stringify(assertion, null, 2),
-        );
-      });
-    });
-  }
-
-  /**
-   * 
-   * @param id 
-   * @param assertion 
-   */
-  private _appendAssertion(id: string, assertion: string) {
-    this._snapshotBuffer.push(
-      `${SnapshotWriter.ASSERTIONS_CONST_NAME}["${id}"] = ${assertion};`,
+      this.snapshotFilename,
+      generatedCode,
+      writeOptions,
     );
   }
 
   /**
    * 
    */
-  private _genSnapshotCode() {
-    this._appendCases();
+  private _generateSnapshotCode() {
+    this._prependHeader();
 
     const code = this._snapshotBuffer.join("\n\n");
 
@@ -84,14 +97,13 @@ export class SnapshotWriter {
    */
   private _resetBuffer() {
     this._snapshotBuffer.length = 0;
-    this._appendHeader();
   }
 
   /**
    * 
    */
-  private _appendHeader() {
-    this._snapshotBuffer.push(
+  private _prependHeader() {
+    this._snapshotBuffer.unshift(
       `export const ${SnapshotWriter.ASSERTIONS_CONST_NAME} = {};`,
     );
   }

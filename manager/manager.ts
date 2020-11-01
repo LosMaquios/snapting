@@ -1,17 +1,14 @@
-import { path } from "../deps.ts";
 import { SnapshotCase } from "../case/case.ts";
-import { SnapshotFileAssertions, SnapshotWriter } from "../writer/writer.ts";
-import { iterateMap, IteratorFn } from "../utils.ts";
+import {
+  SNAPSHOT_FILE_ASSERTION_ID_REGEX,
+  SnapshotFileAssertions,
+  SnapshotWriter,
+} from "../writer/writer.ts";
 
 export type SnapshotCaseId = string;
 export type SnapshotCaseMap = Map<SnapshotCaseId, SnapshotCase>;
 
-export class SnapshotManager {
-  /**
-   * 
-   */
-  static EXTRACT_CASE_AND_ASSERTION_ID_REGEX = /^([\s\S]+) (\d+)$/;
-
+export class SnapshotManager extends SnapshotWriter {
   /**
    * 
    */
@@ -26,24 +23,6 @@ export class SnapshotManager {
    * 
    */
   hasValidSnapshotFile = false;
-
-  /**
-   * 
-   */
-  snapshotFilename = new URL(
-    `./${path.basename(this._parentURL)}.snap`,
-    this._parentURL,
-  ).toString();
-
-  /**
-   * 
-   * @param _parentURL 
-   */
-  constructor(
-    private _parentURL: string,
-  ) {
-    new SnapshotWriter(this);
-  }
 
   /**
    * 
@@ -85,9 +64,15 @@ export class SnapshotManager {
       const ids = Object.keys(assertions);
 
       for (const id of ids) {
-        // TODO: Check `id` integrity
-        const [, caseId, assertionId] = SnapshotManager
-          .EXTRACT_CASE_AND_ASSERTION_ID_REGEX.exec(id)!;
+        const match = SNAPSHOT_FILE_ASSERTION_ID_REGEX.exec(id);
+
+        if (!match || !match.groups) {
+          throw new Error(
+            `[MISMATCH] Invalid snapshot file assertion id: ${id}`,
+          );
+        }
+
+        const { groups: { caseId, assertionId } } = match;
 
         const resultCase = this.getCase(caseId);
         const assertion = assertions[id];
@@ -101,11 +86,5 @@ export class SnapshotManager {
     }
 
     this._resolvedSnapshotFile = true;
-  }
-
-  eachCase(
-    iterator: IteratorFn<SnapshotCaseId, SnapshotCase>,
-  ) {
-    iterateMap(this._snapshotCases, iterator);
   }
 }

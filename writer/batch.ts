@@ -7,7 +7,9 @@ export class SnapshotBatch extends Set<SnapshotWriter> {
   commit() {
     // Perform writes sequentially
     for (const writer of this) {
-      writer.write();
+      if (writer.pendingWrite) {
+        writer.write();
+      }
     }
 
     // Empty queue

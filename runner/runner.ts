@@ -10,6 +10,15 @@ export function getCurrentSnapshotCase() {
 }
 
 export function createSnapshotRunner(importURL: string) {
+  let snapshotManager = managerCache.get(importURL)!;
+
+  if (!snapshotManager) {
+    managerCache.set(
+      importURL,
+      snapshotManager = new SnapshotManager(importURL),
+    );
+  }
+
   return function snapshotRunner(...args: any[]) {
     let testDefinition: Deno.TestDefinition = args[0];
 
@@ -21,14 +30,6 @@ export function createSnapshotRunner(importURL: string) {
     }
 
     const { fn } = testDefinition;
-    let snapshotManager = managerCache.get(importURL)!;
-
-    if (!snapshotManager) {
-      managerCache.set(
-        importURL,
-        snapshotManager = new SnapshotManager(importURL),
-      );
-    }
 
     // Patch test fn
     testDefinition.fn = async (...args) => {
