@@ -1,7 +1,43 @@
 export const assertions = {};
 
-assertions["should work 0"] = "Testing snapshots";
+assertions["should work with primitive types 0"] = 123;
 
-assertions["this should be working now 0"] = "C'mon";
+assertions["should work with primitive types 1"] = 123.456;
 
-assertions["this should be working now 1"] = "What?";
+assertions["should work with primitive types 2"] = "some string";
+
+assertions["should work with primitive types 3"] = true;
+
+assertions["should work with primitive types 4"] = false;
+
+assertions["should work with primitive types 5"] = null;
+
+assertions["should work with complex types 0"] = {
+  "int": 123,
+  "float": 123.456,
+  "string": "some string",
+  "truthy": true,
+  "falsy": false,
+  "nullish": null,
+  "object": {
+    "key": "value"
+  },
+  "array": [
+    "element"
+  ]
+};
+
+assertions["should work with complex types 1"] = [
+  123,
+  123.456,
+  "some string",
+  true,
+  false,
+  null,
+  {
+    "key": "value"
+  },
+  [
+    "element"
+  ]
+];

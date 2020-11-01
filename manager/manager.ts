@@ -1,7 +1,7 @@
-import * as path from "https://deno.land/std@0.74.0/path/mod.ts";
-
+import { path } from "../deps.ts";
 import { SnapshotCase } from "../case/case.ts";
 import { SnapshotFileAssertions, SnapshotWriter } from "../writer/writer.ts";
+import { iterateMap, IteratorFn } from "../utils.ts";
 
 export type SnapshotCaseId = string;
 export type SnapshotCaseMap = Map<SnapshotCaseId, SnapshotCase>;
@@ -25,17 +25,15 @@ export class SnapshotManager {
   /**
    * 
    */
-  private get _snapshotFilename() {
-    return new URL(
-      `./${path.basename(this._parentURL)}.snap`,
-      this._parentURL,
-    ).toString();
-  }
+  hasValidSnapshotFile = false;
 
   /**
    * 
    */
-  private _snapshotWriter = new SnapshotWriter(this._snapshotFilename);
+  snapshotFilename = new URL(
+    `./${path.basename(this._parentURL)}.snap`,
+    this._parentURL,
+  ).toString();
 
   /**
    * 
@@ -43,7 +41,9 @@ export class SnapshotManager {
    */
   constructor(
     private _parentURL: string,
-  ) {}
+  ) {
+    new SnapshotWriter(this);
+  }
 
   /**
    * 
@@ -55,7 +55,7 @@ export class SnapshotManager {
     if (!resultCase) {
       this._snapshotCases.set(
         caseId,
-        resultCase = new SnapshotCase(caseId, this._writeSnapshotFile),
+        resultCase = new SnapshotCase(caseId, this),
       );
     }
 
@@ -73,7 +73,8 @@ export class SnapshotManager {
     let snapshotFile: SnapshotFileAssertions | null = null;
 
     try {
-      snapshotFile = await import(this._snapshotFilename);
+      snapshotFile = await import(this.snapshotFilename);
+      this.hasValidSnapshotFile = true;
     } catch (error) {
       // TODO
       console.error(error);
@@ -94,6 +95,7 @@ export class SnapshotManager {
         resultCase.addAssertion(
           parseInt(assertionId),
           assertion,
+          true,
         );
       }
     }
@@ -101,25 +103,9 @@ export class SnapshotManager {
     this._resolvedSnapshotFile = true;
   }
 
-  /**
-   *
-   */
-  private _writeSnapshotFile = () => {
-    let needRewrite = false;
-
-    for (const [caseId, kase] of this._snapshotCases) {
-      if (kase.pendingUpdates) {
-        needRewrite = true;
-      }
-
-      kase.eachAssertion((assertionId, assertion) => {
-        this._snapshotWriter.appendAssertion(
-          `${caseId} ${assertionId}`,
-          JSON.stringify(assertion, null, 2),
-        );
-      });
-    }
-
-    return needRewrite ? this._snapshotWriter.write() : Promise.resolve();
-  };
+  eachCase(
+    iterator: IteratorFn<SnapshotCaseId, SnapshotCase>,
+  ) {
+    iterateMap(this._snapshotCases, iterator);
+  }
 }

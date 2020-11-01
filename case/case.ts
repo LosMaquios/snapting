@@ -1,4 +1,9 @@
-import { assertEquals } from "https://deno.land/std@0.74.0/testing/asserts.ts";
+import type { SnapshotManager } from "../manager/manager.ts";
+import { iterateMap, IteratorFn } from "../utils.ts";
+import {
+  assertEquals,
+  AssertionError,
+} from "https://deno.land/std@0.74.0/testing/asserts.ts";
 
 export type SnapshotAssertionId = number;
 export type SnapshotAssertionMap = Map<SnapshotAssertionId, any>;
@@ -17,19 +22,27 @@ export class SnapshotCase {
   /**
    * 
    */
-  pendingUpdates = false;
+  private _pendingSnapshotAssertions: SnapshotAssertionMap = new Map();
 
   constructor(
     public caseId: string,
-    private _endCb: () => Promise<void>,
+    private _snapshotManager: SnapshotManager,
   ) {}
 
   /**
    * 
-   * @param assertion 
+   * @param assertion
    */
-  addAssertion(assertionId: SnapshotAssertionId, assertion: any) {
+  addAssertion(
+    assertionId: SnapshotAssertionId,
+    assertion: any,
+    pending = false,
+  ) {
     this._snapshotAssertions.set(assertionId, assertion);
+
+    if (pending) {
+      this._pendingSnapshotAssertions.set(assertionId, assertion);
+    }
   }
 
   /**
@@ -40,13 +53,23 @@ export class SnapshotCase {
   assert(assertion: any, message: string) {
     const assertionId = this._currentSnapshotAssertionId++;
     const expected = this._snapshotAssertions.get(assertionId);
+    const { hasValidSnapshotFile } = this._snapshotManager;
 
     if (!this._snapshotAssertions.has(assertionId)) {
-      this.pendingUpdates = true;
+      if (hasValidSnapshotFile) {
+        throw new AssertionError(
+          `Missing assertion in snapshot file${message ? `: ${message}` : "."}`,
+        );
+      }
+
       return this.addAssertion(assertionId, assertion);
     }
 
     assertEquals(assertion, expected, message);
+
+    if (hasValidSnapshotFile) {
+      this._pendingSnapshotAssertions.delete(assertionId);
+    }
   }
 
   /**
@@ -54,17 +77,19 @@ export class SnapshotCase {
    * @param iterator 
    */
   eachAssertion(
-    iterator: (assertionId: SnapshotAssertionId, assertion: any) => void,
+    iterator: IteratorFn<SnapshotAssertionId, any>,
   ) {
-    for (const [assertionId, assertion] of this._snapshotAssertions) {
-      iterator(assertionId, assertion);
-    }
+    iterateMap(this._snapshotAssertions, iterator);
   }
 
   /**
    * 
    */
-  end() {
-    return this._endCb();
+  validatePendingAssertions() {
+    if (this._pendingSnapshotAssertions.size) {
+      throw new AssertionError(
+        "[MISMATCH] Snapshot file has pending assertions.",
+      );
+    }
   }
 }

@@ -25,7 +25,7 @@ export function createSnapshotRunner(importURL: string) {
 
     if (!snapshotManager) {
       managerCache.set(
-        import.meta.url,
+        importURL,
         snapshotManager = new SnapshotManager(importURL),
       );
     }
@@ -37,7 +37,7 @@ export function createSnapshotRunner(importURL: string) {
       currentSnapshotCase = snapshotManager.getCase(testDefinition.name);
       await fn(...args);
 
-      await currentSnapshotCase.end();
+      currentSnapshotCase.validatePendingAssertions();
       currentSnapshotCase = null;
     };
 

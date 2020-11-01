@@ -1,3 +1,6 @@
+import type { SnapshotManager } from "../manager/manager.ts";
+import { snapshotBatchInstance } from "./batch.ts";
+
 export type SnapshotFileAssertions = { assertions: Record<string, any> };
 export type SnapshotFileBuffer = string[];
 
@@ -13,30 +16,25 @@ export class SnapshotWriter {
   private _snapshotBuffer: SnapshotFileBuffer = [];
 
   constructor(
-    private _snapshotFilename: string,
+    private _snapshotManager: SnapshotManager,
   ) {
-    this._appendHeader();
-  }
+    // Auto-batching
+    snapshotBatchInstance.add(this);
 
-  /**
-   * 
-   * @param id 
-   * @param assertion 
-   */
-  appendAssertion(id: string, assertion: string) {
-    this._snapshotBuffer.push(
-      `${SnapshotWriter.ASSERTIONS_CONST_NAME}["${id}"] = ${assertion};`,
-    );
+    this._appendHeader();
   }
 
   /**
    *
    */
   write() {
-    console.log("Writing to:", this._snapshotFilename.replace("file://", ""));
+    const fixPath = this._snapshotManager.snapshotFilename.replace(
+      "file://",
+      "",
+    );
 
-    return Deno.writeTextFile(
-      this._snapshotFilename.replace("file://", ""),
+    return Deno.writeTextFileSync(
+      fixPath,
       this._genSnapshotCode(),
       {
         mode: 0o777,
@@ -45,9 +43,36 @@ export class SnapshotWriter {
   }
 
   /**
+   *
+   */
+  private _appendCases() {
+    this._snapshotManager.eachCase((caseId, kase) => {
+      kase.eachAssertion((assertionId, assertion) => {
+        this._appendAssertion(
+          `${caseId} ${assertionId}`,
+          JSON.stringify(assertion, null, 2),
+        );
+      });
+    });
+  }
+
+  /**
+   * 
+   * @param id 
+   * @param assertion 
+   */
+  private _appendAssertion(id: string, assertion: string) {
+    this._snapshotBuffer.push(
+      `${SnapshotWriter.ASSERTIONS_CONST_NAME}["${id}"] = ${assertion};`,
+    );
+  }
+
+  /**
    * 
    */
   private _genSnapshotCode() {
+    this._appendCases();
+
     const code = this._snapshotBuffer.join("\n\n");
 
     this._resetBuffer();
