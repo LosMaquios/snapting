@@ -6,4 +6,4 @@ export * from "./assert/assert.ts";
 /**
  * Export runner
  */
-export * from "./runner/runner.ts";
+export { createSnapshotRunner } from "./runner/runner.ts";
