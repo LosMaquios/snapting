@@ -1,9 +1,6 @@
 import type { SnapshotManager } from "../manager/manager.ts";
 import { iterateMap, IteratorFn } from "../utils.ts";
-import {
-  assertEquals,
-  AssertionError,
-} from "https://deno.land/std@0.74.0/testing/asserts.ts";
+import { asserts } from "../deps.ts";
 
 export type SnapshotAssertionId = number;
 export type SnapshotAssertionMap = Map<SnapshotAssertionId, any>;
@@ -57,7 +54,7 @@ export class SnapshotCase {
 
     if (!this._snapshotAssertions.has(assertionId)) {
       if (hasValidSnapshotFile) {
-        throw new AssertionError(
+        throw new asserts.AssertionError(
           `Missing assertion in snapshot file${message ? `: ${message}` : "."}`,
         );
       }
@@ -65,7 +62,7 @@ export class SnapshotCase {
       return this.addAssertion(assertionId, assertion);
     }
 
-    assertEquals(assertion, expected, message);
+    asserts.assertEquals(assertion, expected, message);
 
     if (hasValidSnapshotFile) {
       this._pendingSnapshotAssertions.delete(assertionId);
@@ -87,7 +84,7 @@ export class SnapshotCase {
    */
   validatePendingAssertions() {
     if (this._pendingSnapshotAssertions.size) {
-      throw new AssertionError(
+      throw new asserts.AssertionError(
         "[MISMATCH] Snapshot file has pending assertions.",
       );
     }
