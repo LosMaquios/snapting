@@ -6,9 +6,13 @@ Deno.test("should print correctly", () => {
 
   class ExtendedSet extends Set {}
 
+  const extendedSet = new ExtendedSet(["test", "set"]);
+
+  extendedSet.add(extendedSet);
+
   const test = {
     regex: /a+/gi,
-    extendedSet: new ExtendedSet(["test", "set"]),
+    extendedSet,
     map: new Map([["hi", ["a", "b"]]]),
     set: new Set([
       {

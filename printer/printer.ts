@@ -5,29 +5,66 @@
  */
 import { getConstructorName, toISOString } from "./printer_utils.ts";
 
-const DENO_FN_FORMAT_INDENTATION_SIZE = 4;
+export interface PrinterOptions {
+  /**
+   * 
+   */
+  indentationSize?: number;
 
-const INDENTATION_SIZE = 2;
+  /**
+   * 
+   */
+  maxDepth?: number;
+}
+
+const DENO_FN_FORMAT_INDENTATION_SIZE = 4;
 const NEWLINE_REGEX = /\r?\n/g;
 
+const defaultPrinterOptions: Required<PrinterOptions> = {
+  indentationSize: 2,
+  maxDepth: 20,
+};
+
 export class Printer {
+  /**
+   * 
+   */
+  options: Required<PrinterOptions>;
+
+  private get _hitMaxDepth() {
+    return this._currentDepth >= this.options.maxDepth;
+  }
+
   constructor(
-    public indentationSize = INDENTATION_SIZE,
+    options: PrinterOptions = {},
     /**
-     * @private
+     * @internal
      */
     private _skipFirstLineIdentation = false,
     /**
-     * @private
+     * @internal
      */
     private _seen = new WeakSet(),
-  ) {}
+    /**
+     * @internal
+     */
+    private _currentDepth = 1,
+  ) {
+    this.options = {
+      ...defaultPrinterOptions,
+      ...options,
+    };
+  }
 
   /**
    * 
    * @param arr 
    */
   printArray(arr: any[] | ArrayLike<any>) {
+    if (this._hitMaxDepth) {
+      return `[${getConstructorName(arr, "Array")}]`;
+    }
+
     this._seen.add(arr);
 
     const isArrayLike = !Array.isArray(arr);
@@ -37,7 +74,12 @@ export class Printer {
       isArrayLike ? "Like" : ""
     } [\n`;
 
-    const valuePrinter = new Printer(this.indentationSize, false, this._seen);
+    const valuePrinter = new Printer(
+      this.options,
+      false,
+      this._seen,
+      this._currentDepth + 1,
+    );
 
     for (let i = 0; i < length; i++) {
       result += valuePrinter.print(arr[i]);
@@ -108,7 +150,8 @@ export class Printer {
           const leftLength = length - extraIndentationCount;
 
           return " ".repeat(
-            this.indentationSize * leftLength / DENO_FN_FORMAT_INDENTATION_SIZE,
+            this.options.indentationSize * leftLength /
+              DENO_FN_FORMAT_INDENTATION_SIZE,
           );
         });
       }
@@ -122,11 +165,21 @@ export class Printer {
    * @param iterable 
    */
   printIterable(iterable: Iterable<any>) {
+    if (this._hitMaxDepth) {
+      return "[Iterable]";
+    }
+
     let result = "Iterable {\n";
 
     let item: IteratorResult<any>;
     const iterator = iterable[Symbol.iterator]();
-    const valuePrinter = new Printer(this.indentationSize, false, this._seen);
+
+    const valuePrinter = new Printer(
+      this.options,
+      false,
+      this._seen,
+      this._currentDepth + 1,
+    );
 
     while (!(item = iterator.next()).done) {
       result += valuePrinter.print(item.value);
@@ -156,12 +209,27 @@ export class Printer {
    * @param map 
    */
   printMap(map: Map<any, any>) {
+    if (this._hitMaxDepth) {
+      return `[${getConstructorName(map, "Map")}]`;
+    }
+
     this._seen.add(map);
 
     let result = `${getConstructorName(map, "Map")} {\n`;
 
-    const keyPrinter = new Printer(this.indentationSize, false, this._seen);
-    const valuePrinter = new Printer(this.indentationSize, true, this._seen);
+    const keyPrinter = new Printer(
+      this.options,
+      false,
+      this._seen,
+      this._currentDepth + 1,
+    );
+
+    const valuePrinter = new Printer(
+      this.options,
+      true,
+      this._seen,
+      this._currentDepth + 1,
+    );
 
     for (const [key, value] of map) {
       result += [
@@ -181,13 +249,29 @@ export class Printer {
    * @param obj 
    */
   printObject(obj: Record<any, any>) {
+    if (this._hitMaxDepth) {
+      return `[${getConstructorName(obj, "Object")}]`;
+    }
+
     this._seen.add(obj);
 
     let result = `${getConstructorName(obj, "Object")} {\n`;
 
     const keys = Object.keys(obj);
-    const keyPrinter = new Printer(this.indentationSize, false, this._seen);
-    const valuePrinter = new Printer(this.indentationSize, true);
+
+    const keyPrinter = new Printer(
+      this.options,
+      false,
+      this._seen,
+      this._currentDepth + 1,
+    );
+
+    const valuePrinter = new Printer(
+      this.options,
+      true,
+      this._seen,
+      this._currentDepth + 1,
+    );
 
     for (const key of keys) {
       result += [
@@ -211,11 +295,20 @@ export class Printer {
   }
 
   printSet(set: Set<any>) {
+    if (this._hitMaxDepth) {
+      return `[${getConstructorName(set, "Set")}]`;
+    }
+
     this._seen.add(set);
 
     let result = `${getConstructorName(set, "Set")} {\n`;
 
-    const valuePrinter = new Printer(this.indentationSize, false, this._seen);
+    const valuePrinter = new Printer(
+      this.options,
+      false,
+      this._seen,
+      this._currentDepth + 1,
+    );
 
     for (const value of set) {
       result += valuePrinter.print(value);
@@ -287,7 +380,7 @@ export class Printer {
             return this.printDate(value);
           }
 
-          if ("length" in value) {
+          if ("length" in value && typeof value.length === "number") {
             return this.printArray(value);
           }
 
@@ -320,7 +413,9 @@ export class Printer {
     }
 
     for (let n = this._skipFirstLineIdentation ? 1 : 0; n < lines.length; n++) {
-      indentedLines.push(`${" ".repeat(this.indentationSize)}${lines[n]}`);
+      indentedLines.push(
+        `${" ".repeat(this.options.indentationSize)}${lines[n]}`,
+      );
     }
 
     return indentedLines.join("\n");
